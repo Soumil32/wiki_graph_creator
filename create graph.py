@@ -20,45 +20,50 @@ def main():
     g = Graph(directed=True)
     wiki_id = g.new_vertex_property("int")
     wiki_title = g.new_vertex_property("string")
-    LINKS_PATH = "/run/media/soumil/D/enwiki/links sample 20k.csv"
+
+    LINKS_PATH = "/run/media/soumil/D/enwiki/links sample 10k.csv"
+
+    # Build title -> index mapping and fill properties
+    title_to_index = {}
     with open(LINKS_PATH, "r") as f:
         # Initial read of the csv file to create the vertices
         reader = csv.reader(f)
-        for row in reader:
-            vertex_id = row[0]
+        for i, row in enumerate(reader):
+            page_wiki_id = int(row[0])
             vertex_title = row[1]
+            title_to_index[vertex_title] = i
             v = g.add_vertex()
-            wiki_id[v] = int(vertex_id)
+            wiki_id[v] = page_wiki_id
             wiki_title[v] = vertex_title
 
+        add_vertices_time = time.time()
+        print("Time taken to add vertices:", add_vertices_time - start, "seconds")
         # Second read of the csv file to create the edges
         f.seek(0)
         for i, row in enumerate(reader):
-            source_wiki_id = row[0]
+            source_wiki_id = int(row[0])
             target_vertices: List[str] = parse_pg_text_array(row[2])  # List of target wiki_titles as strings
             if len(target_vertices) == 0:
                 continue
             source_vertex = g.vertex(i)
             if source_vertex is None:
                 # This should not happen as we have already created all vertices
-                print("Source vertex not found for vertex_id:", vertex_id)
+                print("Source vertex not found for vertex_id:", source_wiki_id)
                 continue
             for v in g.iter_vertices():
                 if wiki_title[v] in target_vertices:
                     g.add_edge(source_vertex, v)
 
+    g.vertex_properties["wiki_id"] = wiki_id
+    g.vertex_properties["wiki_title"] = wiki_title
+    g.save("my_graph.gt.gz")
     end = time.time()
     print("Time taken to build graph:", end - start, "seconds")
     print("Number of vertices:", g.num_vertices())
     print("Number of edges:", g.num_edges())
     print("Random id of a vertex:", wiki_id[g.vertex(4545)])
-    pos = sfdp_layout(g)
-    # state = minimize_nested_blockmodel_dl(g)
-    state = minimize_blockmodel_dl(g)
-    state.draw(pos=pos, output="graph_blockmodel.pdf", vertex_text=wiki_id)
-    end = time.time()
-    print("Time taken to build and analyze graph:", end - start, "seconds")
-    # graph_draw(g, pos=pos, vertex_text=wiki_title, output="graph.pdf", vertex_fill_color="#FFDD44")
+    print("Random title of a vertex:", wiki_title[g.vertex(4545)])
+
 
 
 if __name__ == "__main__":
