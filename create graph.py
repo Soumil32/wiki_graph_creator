@@ -1,4 +1,5 @@
 import csv
+import sys
 from typing import List
 from graph_tool.all import *
 import time
@@ -14,6 +15,7 @@ def parse_pg_text_array(s):
 
 
 def main():
+    csv.field_size_limit(sys.maxsize)
     print("OpenMP enabled: ", openmp_enabled())
     print("OpenMp threads: ", openmp_get_num_threads())
     start = time.time()
@@ -21,7 +23,7 @@ def main():
     wiki_id = g.new_vertex_property("int")
     wiki_title = g.new_vertex_property("string")
 
-    LINKS_PATH = "/run/media/soumil/D/enwiki/links sample 10k.csv"
+    LINKS_PATH = "/run/media/soumil/D/enwiki/links sample 500k.csv"
 
     # Build title -> index mapping and fill properties
     title_to_index = {}
@@ -39,7 +41,8 @@ def main():
         add_vertices_time = time.time()
         print("Time taken to add vertices:", add_vertices_time - start, "seconds")
         # Second read of the csv file to create the edges
-        f.seek(0)
+    with open(LINKS_PATH, "r") as f:
+        reader = csv.reader(f)
         for i, row in enumerate(reader):
             source_wiki_id = int(row[0])
             target_vertices: List[str] = parse_pg_text_array(row[2])  # List of target wiki_titles as strings
@@ -50,13 +53,18 @@ def main():
                 # This should not happen as we have already created all vertices
                 print("Source vertex not found for vertex_id:", source_wiki_id)
                 continue
-            for v in g.iter_vertices():
-                if wiki_title[v] in target_vertices:
-                    g.add_edge(source_vertex, v)
+
+            edges_to_add = []
+            for target_title in target_vertices:
+                target_index = title_to_index.get(target_title)
+                if target_index is not None:
+                    target_vertex = g.vertex(target_index)
+                    edges_to_add.append((i, target_index))
+            g.add_edge_list(edges_to_add)
 
     g.vertex_properties["wiki_id"] = wiki_id
     g.vertex_properties["wiki_title"] = wiki_title
-    g.save("my_graph.gt.gz")
+    g.save("my_graph_500k.gt.gz")
     end = time.time()
     print("Time taken to build graph:", end - start, "seconds")
     print("Number of vertices:", g.num_vertices())
