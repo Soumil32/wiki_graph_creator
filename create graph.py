@@ -23,7 +23,7 @@ def main():
     wiki_id = g.new_vertex_property("int")
     wiki_title = g.new_vertex_property("string")
 
-    LINKS_PATH = "/run/media/soumil/D/enwiki/links sample 2m.csv"
+    LINKS_PATH = "/run/media/soumil/D/enwiki/links.csv"
 
     # Build title -> index mapping and fill properties
     title_to_index = {}
@@ -55,16 +55,19 @@ def main():
                 continue
 
             edges_to_add = []
-            for target_title in target_vertices:
+            for j, target_title in enumerate(target_vertices):
                 target_index = title_to_index.get(target_title)
                 if target_index is not None:
                     target_vertex = g.vertex(target_index)
-                    edges_to_add.append((i, target_index))
+                    edges_to_add.append((source_vertex, target_vertex))
             g.add_edge_list(edges_to_add)
 
-    # g.vertex_properties["wiki_id"] = wiki_id
-    # g.vertex_properties["wiki_title"] = wiki_title
-    g.save("my_graph_2m_wo_properties.gt.gz")
+    g.vertex_properties["wiki_id"] = wiki_id
+    g.vertex_properties["wiki_title"] = wiki_title
+    title_to_index_prop = g.new_graph_property("python::object")
+    g.graph_properties["title_to_index"] = title_to_index_prop
+    g.graph_properties["title_to_index"] = title_to_index
+    g.save("graphs/my_graph_full.gt.gz")
     end = time.time()
     print("Time taken to build graph:", end - start, "seconds")
     print("Number of vertices:", g.num_vertices())
